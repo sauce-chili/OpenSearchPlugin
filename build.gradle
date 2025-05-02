@@ -1,0 +1,163 @@
+import org.opensearch.gradle.test.RestIntegTestTask
+
+buildscript {
+    ext {
+        opensearch_version = "2.12.0"
+        gsom_version = '2.10.1'
+        junit_version = '5.10.0'
+        repoList = {
+            mavenLocal()
+            maven { url "https://aws.oss.sonatype.org/content/repositories/snapshots" }
+            mavenCentral()
+            maven { url "https://plugins.gradle.org/m2/" }
+        }
+    }
+
+    repositories(ext.repoList)
+
+    dependencies {
+        classpath "org.opensearch.gradle:build-tools:${opensearch_version}"
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'eclipse'
+apply plugin: 'opensearch.opensearchplugin'
+apply plugin: 'opensearch.yaml-rest-test'
+apply plugin: 'opensearch.pluginzip'
+
+def pluginName = 'stats-plugin'
+def pluginDescription = 'Custom stats plugin for OpenSearch provide funcs like avg, max, uniq values'
+def packagePath = 'vlbl.stats'
+def pathToPlugin = 'plugin'
+def pluginClassName = 'StatsPlugin'
+group = "vlbl.stats"
+version = '0.1'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_17
+}
+
+tasks.register("preparePluginPathDirs") {
+    mustRunAfter clean
+    doLast {
+        def newPath = pathToPlugin.replace(".", "/")
+        mkdir "src/main/java/${packagePath.replace('.', '/')}/$newPath"
+        mkdir "src/test/java/${packagePath.replace('.', '/')}/$newPath"
+        mkdir "src/yamlRestTest/java/${packagePath.replace('.', '/')}/$newPath"
+    }
+}
+
+publishing {
+    publications {
+        pluginZip(MavenPublication) { publication ->
+            pom {
+                name = pluginName
+                description = pluginDescription
+                licenses {
+                    license {
+                        name = "The Apache License, Version 2.0"
+                        url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+                    }
+                }
+                developers {
+                    developer {
+                        // TODO replace this
+                        name = "OpenSearch"
+                        url = ""
+                    }
+                }
+            }
+        }
+    }
+}
+
+opensearchplugin {
+    name pluginName
+    description pluginDescription
+    classname "${packagePath}.${pathToPlugin}.${pluginClassName}"
+    licenseFile rootProject.file('LICENSE.txt')
+    noticeFile rootProject.file('NOTICE.txt')
+}
+
+loggerUsageCheck.enabled = false
+validateNebulaPom.enabled = false
+
+repositories(ext.repoList)
+
+dependencies {
+    // opensearch
+    compileOnly "org.opensearch:opensearch:${opensearch_version}"
+    compileOnly "org.opensearch.client:opensearch-rest-client:${opensearch_version}"
+    compileOnly "org.opensearch:opensearch-core:${opensearch_version}"
+    compileOnly "org.opensearch:opensearch-x-content:${opensearch_version}"
+    // gson
+    implementation "com.google.code.gson:gson:${gsom_version}"
+
+    testImplementation "org.opensearch.test:framework:${opensearch_version}"
+
+    // JUnit
+    testImplementation "org.junit.jupiter:junit-jupiter-api:${junit_version}"
+    testImplementation "org.junit.jupiter:junit-jupiter-params:${junit_version}"
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${junit_version}"
+}
+
+test {
+    useJUnitPlatform()
+    include '**/*Test.class'
+    include '**/*IT.class'
+    jvmArgs '-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5006'
+
+    systemProperty 'tests.security.manager', 'false'
+
+}
+
+tasks.withType(Test).configureEach {
+    jvmArgs "-XX:+AllowRedefinitionToAddDeleteMethods"
+}
+
+tasks.register('integTest', RestIntegTestTask) {
+    description = "Run tests against a cluster"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+}
+
+tasks.named("check").configure { dependsOn(integTest) }
+
+integTest {
+    if (System.getProperty("test.debug") != null) {
+        // for remote debug
+        jvmArgs '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005'
+    }
+}
+
+testClusters.integTest {
+    testDistribution = "INTEG_TEST"
+    plugin(project.tasks.bundlePlugin.archiveFile)
+}
+
+run {
+    useCluster testClusters.integTest
+}
+
+jar {
+    archiveBaseName = 'stats-plugin'
+}
+
+tasks.named('bundlePlugin') {
+    from jar
+    from configurations.runtimeClasspath {
+        exclude group: "org.opensearch", module: "*"
+        exclude group: "org.opensearch.client", module: "*"
+        exclude group: "com.github.luben", module: "zstd-jni"
+    }
+}
+
+tasks.named("bundlePlugin").configure {
+    archiveFileName = "stats-plugin.zip"  // Фиксированное имя
+}
