@@ -30,13 +30,56 @@ curl -x GET "http://localhost:9200/<your index>/<one of the functions: avg, max,
 ### Example requests:
 avg:
 ```bash
-curl -x GET "http://localhost:9200/test-idx/avg"
+curl -x GET "http://localhost:9200/_custom-stats/test-idx/avg"
 ```
 max:
 ```bash
-curl -x GET "http://localhost:9200/test-idx/max"
+curl -x GET "http://localhost:9200/_custom-stats/test-idx/max"
 ```
 values:
 ```bash
-curl -x GET "http://localhost:9200/test-idx/values"
+curl -x GET "http://localhost:9200/_custom-stats/test-idx/values"
+```
+### Example response:
+_success_:
+```json
+{
+    "success": true,
+    "isPartialResponse": false,
+    "data": {
+        "values": [
+            "192.168.10.8",
+            "192.168.11.9"
+        ]
+    }
+}
+```
+_error_:
+```json
+{
+    "errorStatus": "INVALID_INDEX",
+    "success": false,
+    "isPartialResponse": false,
+    "error": {
+        "code": 1801,
+        "message": "Невалидное состояние индекса",
+        "errors": [
+            {
+                "code": 1803,
+                "reason": "FIELD_TYPE_MISMATCH",
+                "description": "Несоответствие тип поля 'host': long"
+            },
+            {
+                "code": 1803,
+                "reason": "FIELD_TYPE_MISMATCH",
+                "description": "Несоответствие тип поля 'ups_adv_battery_run_time_remaining': text"
+            },
+            {
+                "code": 1803,
+                "reason": "FIELD_TYPE_MISMATCH",
+                "description": "Несоответствие тип поля 'ups_adv_output_voltage': text"
+            }
+        ]
+    }
+}
 ```
