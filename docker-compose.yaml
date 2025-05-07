@@ -5,16 +5,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    environment:
-      - discovery.type=single-node
-      - plugins.security.disabled=true
-      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    env_file:
+      - .env/ENV-local.env
     ports:
       - "9200:9200"    # REST API
       - "9600:9600"    # Performance Analyzer
       - "5005:5005"    # Debug port
     volumes:
       - opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
 volumes:
   opensearch-data:

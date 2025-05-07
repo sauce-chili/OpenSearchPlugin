@@ -1,10 +1,7 @@
-import org.opensearch.gradle.test.RestIntegTestTask
-
 buildscript {
     ext {
-        opensearch_version = "2.12.0"
-        gsom_version = '2.10.1'
-        junit_version = '5.10.0'
+        opensearch_version = "2.19.1"
+        gson_version = '2.10.1'
         repoList = {
             mavenLocal()
             maven { url "https://aws.oss.sonatype.org/content/repositories/snapshots" }
@@ -24,7 +21,6 @@ apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'eclipse'
 apply plugin: 'opensearch.opensearchplugin'
-apply plugin: 'opensearch.yaml-rest-test'
 apply plugin: 'opensearch.pluginzip'
 
 def pluginName = 'stats-plugin'
@@ -37,10 +33,10 @@ version = '0.1'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
-    targetCompatibility = JavaVersion.VERSION_17
-    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_21
 }
 
 tasks.register("preparePluginPathDirs") {
@@ -67,8 +63,7 @@ publishing {
                 }
                 developers {
                     developer {
-                        // TODO replace this
-                        name = "OpenSearch"
+                        name = "sauce-chili"
                         url = ""
                     }
                 }
@@ -91,58 +86,12 @@ validateNebulaPom.enabled = false
 repositories(ext.repoList)
 
 dependencies {
-    // opensearch
     compileOnly "org.opensearch:opensearch:${opensearch_version}"
     compileOnly "org.opensearch.client:opensearch-rest-client:${opensearch_version}"
     compileOnly "org.opensearch:opensearch-core:${opensearch_version}"
     compileOnly "org.opensearch:opensearch-x-content:${opensearch_version}"
-    // gson
-    implementation "com.google.code.gson:gson:${gsom_version}"
 
-    testImplementation "org.opensearch.test:framework:${opensearch_version}"
-
-    // JUnit
-    testImplementation "org.junit.jupiter:junit-jupiter-api:${junit_version}"
-    testImplementation "org.junit.jupiter:junit-jupiter-params:${junit_version}"
-    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${junit_version}"
-}
-
-test {
-    useJUnitPlatform()
-    include '**/*Test.class'
-    include '**/*IT.class'
-    jvmArgs '-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5006'
-
-    systemProperty 'tests.security.manager', 'false'
-
-}
-
-tasks.withType(Test).configureEach {
-    jvmArgs "-XX:+AllowRedefinitionToAddDeleteMethods"
-}
-
-tasks.register('integTest', RestIntegTestTask) {
-    description = "Run tests against a cluster"
-    testClassesDirs = sourceSets.test.output.classesDirs
-    classpath = sourceSets.test.runtimeClasspath
-}
-
-tasks.named("check").configure { dependsOn(integTest) }
-
-integTest {
-    if (System.getProperty("test.debug") != null) {
-        // for remote debug
-        jvmArgs '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005'
-    }
-}
-
-testClusters.integTest {
-    testDistribution = "INTEG_TEST"
-    plugin(project.tasks.bundlePlugin.archiveFile)
-}
-
-run {
-    useCluster testClusters.integTest
+    implementation "com.google.code.gson:gson:${gson_version}"
 }
 
 jar {
@@ -159,5 +108,5 @@ tasks.named('bundlePlugin') {
 }
 
 tasks.named("bundlePlugin").configure {
-    archiveFileName = "stats-plugin.zip"  // Фиксированное имя
+    archiveFileName = "stats-plugin.zip"
 }
