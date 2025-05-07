@@ -25,6 +25,6 @@ public class StatsPlugin extends Plugin implements ActionPlugin {
             IndexNameExpressionResolver indexNameExpressionResolver,
             Supplier<DiscoveryNodes> nodesInCluster
     ) {
-        return List.of();
+        return List.of(new StatHandler());
     }
 }
