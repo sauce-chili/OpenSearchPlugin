@@ -1,7 +1,7 @@
 package vlbl.stats.plugin;
 
 import com.google.gson.Gson;
-import org.opensearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
+import com.google.gson.GsonBuilder;
 import org.opensearch.action.search.ClearScrollRequest;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
@@ -16,6 +16,7 @@ import vlbl.stats.api.ApiErrorCodeEnum;
 import vlbl.stats.api.ApiResponse;
 import vlbl.stats.api.ApiResponseError;
 import vlbl.stats.api.CommonResponseErrorInfo;
+import vlbl.stats.util.DummyLenientTypeAdapterFactory;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -23,7 +24,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 import static org.opensearch.rest.RestRequest.Method.GET;
 
@@ -31,7 +31,10 @@ public class StatHandler extends BaseRestHandler {
     private final static String HANDLER_NAME = "stats_action";
     private final static String ROUTE_STAT_TEMPLATE = "/_custom-stats/{index}/{function}";
 
-    private static final Gson gson = new Gson();
+    private static final Gson gson = new GsonBuilder()
+            .registerTypeAdapterFactory(new DummyLenientTypeAdapterFactory())
+            .serializeSpecialFloatingPointValues()
+            .create();
 
     @Override
     public String getName() {
