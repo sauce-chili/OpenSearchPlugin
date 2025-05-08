@@ -72,21 +72,21 @@ public class StatHandler extends BaseRestHandler {
             )));
         }
 
-        Optional<ApiResponseError> verificationIndexError = verifyIndex(client, index);
+        Optional<ApiResponseError> verificationIndexError = verifyIndexExistence(client, index);
 
-        if (verificationIndexError.isEmpty()) {
-            return processRequest(client, index, func.get());
-        } else {
-            return sendResponse(ApiResponse.error(verificationIndexError.get()));
-        }
+        return verificationIndexError
+                .map(e -> sendResponse(ApiResponse.error(e)))
+                .orElseGet(() -> processRequest(client, index, func.get()));
     }
 
-    private Optional<ApiResponseError> verifyIndex(NodeClient client, String index) {
-        GetFieldMappingsResponse response;
+    private Optional<ApiResponseError> verifyIndexExistence(
+            NodeClient client,
+            String index
+    ) {
         try {
-            response = client.admin().indices()
+            client.admin()
+                    .indices()
                     .prepareGetFieldMappings(index)
-                    .setFields(StatModel.getJsonFieldNames())
                     .get();
         } catch (IndexNotFoundException e) {
             return Optional.of(new ApiResponseError(
@@ -94,52 +94,6 @@ public class StatHandler extends BaseRestHandler {
                     String.format("Индекс %s не существует", index)
             ));
         }
-
-        Map<String, GetFieldMappingsResponse.FieldMappingMetadata> fieldsMetadata = response.mappings().get(index);
-
-        List<CommonResponseErrorInfo> errorInfo = fieldsMetadata.entrySet().stream()
-                .filter(e -> StatModel.opensearchFieldType.containsKey(e.getKey()))
-                .map(e -> verifyIndexField(
-                        e.getValue(),
-                        e.getKey(),
-                        StatModel.opensearchFieldType.get(e.getKey())
-                ))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .toList();
-
-        if (errorInfo.isEmpty()) {
-            return Optional.empty();
-        }
-
-        return Optional.of(new ApiResponseError(ApiErrorCodeEnum.INVALID_INDEX, errorInfo));
-    }
-
-    private Optional<CommonResponseErrorInfo> verifyIndexField(
-            GetFieldMappingsResponse.FieldMappingMetadata fieldMetadata,
-            String fieldName,
-            Set<String> allowedTypes
-    ) {
-        if (isNull(fieldMetadata)) {
-            return Optional.of(new CommonResponseErrorInfo(
-                    ApiErrorCodeEnum.MISSING_MANDATORY_FIELD.getCode(),
-                    ApiErrorCodeEnum.MISSING_MANDATORY_FIELD.name(),
-                    String.format("Отсутствует поле: %s", fieldName)
-            ));
-        }
-
-        Map<String, Object> fieldProps = fieldMetadata.sourceAsMap();
-        String fieldType = fieldProps.get(fieldName) instanceof Map<?, ?> map ?
-                (String) map.get("type") : null;
-
-        if (isNull(fieldType) || !allowedTypes.contains(fieldType)) {
-            return Optional.of(new CommonResponseErrorInfo(
-                    ApiErrorCodeEnum.FIELD_TYPE_MISMATCH.getCode(),
-                    ApiErrorCodeEnum.FIELD_TYPE_MISMATCH.name(),
-                    String.format("Несоответствие тип поля '%s': %s", fieldName, fieldType)
-            ));
-        }
-
         return Optional.empty();
     }
 

@@ -5,19 +5,10 @@ import java.util.List;
 import java.util.Optional;
 
 public enum StatFunctionEnum {
-    AVG(StatModel.JsonFields.UPS_ADV_BATTERY),
-    MAX(StatModel.JsonFields.UPS_ADV_VOLTAGE),
-    VALUES(StatModel.JsonFields.HOST);
-
-    StatFunctionEnum(String processedField) {
-        this.processedField = processedField;
-    }
-
-    private final String processedField;
-
-    public String getProcessedField() {
-        return processedField;
-    }
+    AVG,
+    MAX,
+    VALUES,
+    ;
 
     public static Optional<StatFunctionEnum> getByName(String name) {
         try {
